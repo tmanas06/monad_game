@@ -65,12 +65,14 @@ export default function BubbleTapGame() {
     level: 1,
   })
 
+  // Refs with proper TypeScript types
+  type IntervalHandle = ReturnType<typeof setInterval>
   const gameAreaRef = useRef<HTMLDivElement>(null)
-  const gameLoopRef = useRef<NodeJS.Timeout>()
-  const bubbleSpawnRef = useRef<NodeJS.Timeout>()
+  const gameLoopRef = useRef<IntervalHandle | null>(null)
+  const bubbleSpawnRef = useRef<IntervalHandle | null>(null)
+  const gameIdRef = useRef<string>('')
   const startTimeRef = useRef<number | null>(null)
   const comboRef = useRef({ lastTap: 0, streak: 0 })
-  const gameIdRef = useRef<string | null>(null)
 
   // Initialize game ID on component mount
   useEffect(() => {
@@ -150,9 +152,20 @@ export default function BubbleTapGame() {
   }, [])
 
   const endGame = useCallback(() => {
-    clearInterval(gameLoopRef.current)
-    clearInterval(bubbleSpawnRef.current)
-    setGameState(prev => ({ ...prev, isPlaying: false, isPaused: false }))
+    if (gameLoopRef.current) {
+      clearInterval(gameLoopRef.current)
+      gameLoopRef.current = null
+    }
+    if (bubbleSpawnRef.current) {
+      clearInterval(bubbleSpawnRef.current)
+      bubbleSpawnRef.current = null
+    }
+    setGameState(prev => ({
+      ...prev,
+      isPlaying: false,
+      isPaused: false,
+      hasStarted: false,
+    }))
   }, [])
 
   const sendTapTx = async (bubble: Bubble, score: number) => {
@@ -205,9 +218,14 @@ export default function BubbleTapGame() {
         newLives = Math.max(0, prev.lives - 1)
       } else if (bubble.type === "powerup" && bubble.powerUpType === "freeze") {
         freezeSound.play()
-        clearInterval(bubbleSpawnRef.current)
+        if (bubbleSpawnRef.current) {
+          clearInterval(bubbleSpawnRef.current)
+          bubbleSpawnRef.current = null
+        }
         setTimeout(() => {
-          bubbleSpawnRef.current = setInterval(spawnBubble, getBubbleSpawnRate(newScore))
+          if (gameState.isPlaying && !gameState.isPaused) {
+            bubbleSpawnRef.current = setInterval(spawnBubble, getBubbleSpawnRate(newScore)) as unknown as NodeJS.Timeout
+          }
         }, 5000)
       } else popSound.play()
 
@@ -224,13 +242,32 @@ export default function BubbleTapGame() {
     })
   }, [endGame])
 
+  const cleanupIntervals = useCallback(() => {
+    // Clear game loop interval if it exists
+    if (gameLoopRef.current !== null) {
+      clearInterval(gameLoopRef.current)
+      gameLoopRef.current = null
+    }
+    
+    // Clear bubble spawn interval if it exists
+    if (bubbleSpawnRef.current !== null) {
+      clearInterval(bubbleSpawnRef.current)
+      bubbleSpawnRef.current = null
+    }
+  }, [])
+
   const startGame = useCallback((mode: GameState["gameMode"]) => {
-    // Use existing gameIdRef or generate a new one if needed
+    // Clear any existing game loop
+    cleanupIntervals()
+    
+    // Generate new game ID if needed
     if (!gameIdRef.current) {
       gameIdRef.current = typeof crypto !== 'undefined' && 'randomUUID' in crypto
         ? crypto.randomUUID()
-        : Math.random().toString(36).slice(2) + Date.now();
+        : Math.random().toString(36).slice(2) + Date.now()
     }
+    
+    // Reset game state
     setGameState({
       bubbles: [],
       score: 0,
@@ -242,6 +279,8 @@ export default function BubbleTapGame() {
       level: 1,
       hasStarted: false,
     })
+    
+    // Set initial view and start time
     setCurrentView("game")
     startTimeRef.current = Date.now()
   }, [])
@@ -251,37 +290,61 @@ export default function BubbleTapGame() {
   }, [])
 
   const resetGame = useCallback(() => {
-    endGame()
+    cleanupIntervals()
+    setGameState({
+      bubbles: [],
+      score: 0,
+      lives: 3,
+      timeLeft: GAME_DURATION,
+      isPlaying: false,
+      isPaused: false,
+      gameMode: "classic",
+      level: 1,
+      hasStarted: false,
+    })
     setCurrentView("menu")
-  }, [endGame])
+  }, [cleanupIntervals])
 
+  // Game loop effect
   useEffect(() => {
-    if (gameState.isPlaying && !gameState.isPaused) {
-      gameLoopRef.current = setInterval(updateBubbles, 50)
-      bubbleSpawnRef.current = setInterval(spawnBubble, getBubbleSpawnRate(gameState.score))
-      let timerInterval: NodeJS.Timeout | undefined
-      if (gameState.gameMode === "timeAttack") {
-        timerInterval = setInterval(() => {
-          setGameState(prev => {
-            if (prev.timeLeft <= 1) {
-              endGame()
-              return prev
-            }
-            return { ...prev, timeLeft: prev.timeLeft - 1 }
-          })
-        }, 1000)
-      }
-      return () => {
-        clearInterval(gameLoopRef.current!)
-        clearInterval(bubbleSpawnRef.current!)
-        if (timerInterval) clearInterval(timerInterval)
-      }
+    if (!gameState.isPlaying || gameState.isPaused) {
+      return
     }
+
+    // Clear any existing intervals
+    cleanupIntervals()
+    
+    // Set up new intervals
+    const gameLoopId = setInterval(updateBubbles, 50) as unknown as NodeJS.Timeout
+    const bubbleSpawnId = setInterval(() => {
+      if (gameState.isPlaying && !gameState.isPaused) {
+        spawnBubble()
+      }
+    }, getBubbleSpawnRate(gameState.score)) as unknown as NodeJS.Timeout
+    
+    gameLoopRef.current = gameLoopId
+    bubbleSpawnRef.current = bubbleSpawnId
+
+    // Time attack mode timer
+    let timerInterval: NodeJS.Timeout | undefined
+    if (gameState.gameMode === "timeAttack") {
+      timerInterval = setInterval(() => {
+        setGameState(prev => {
+          if (prev.timeLeft <= 1) {
+            endGame()
+            return prev
+          }
+          return { ...prev, timeLeft: prev.timeLeft - 1 }
+        })
+      }, 1000)
+    }
+
+    // Cleanup function
     return () => {
-      clearInterval(gameLoopRef.current!)
-      clearInterval(bubbleSpawnRef.current!)
+      cleanupIntervals()
+      if (timerInterval) clearInterval(timerInterval)
     }
-  }, [gameState.isPlaying, gameState.isPaused, gameState.score, updateBubbles, spawnBubble, endGame])
+  }, [gameState.isPlaying, gameState.isPaused, gameState.score, gameState.gameMode, updateBubbles, spawnBubble, endGame])
 
   useEffect(() => {
     if (gameState.isPlaying && gameState.lives <= 0) endGame()
