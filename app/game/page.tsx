@@ -11,17 +11,11 @@ type GameType = 'bubble' | 'snake' | 'crypto';
 export default function GamePage() {
   const [activeGame, setActiveGame] = useState<GameType>('bubble');
 
-  // Prevent scroll when game is mounted
-  useEffect(() => {
-    document.body.style.overflow = 'hidden';
-    return () => {
-      document.body.style.overflow = 'unset';
-    };
-  }, []);
+  // Removed scroll prevention to allow page scrolling
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white pt-20 pb-10 px-4">
-      <div className="max-w-4xl mx-auto">
+    <div className="min-h-screen bg-gray-900 text-white pt-20 pb-10 px-4 overflow-auto">
+      <div className="max-w-4xl mx-auto min-h-[calc(100vh-5rem)]">
         <div className="flex justify-center mb-8">
           <div className="inline-flex rounded-lg bg-gray-800 p-1 space-x-1">
             <button

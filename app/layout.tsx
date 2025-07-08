@@ -20,11 +20,11 @@ export default function RootLayout({
   children: React.ReactNode
 }>) {
   return (
-    <html lang="en" className="dark">
-      <body className={`${inter.className} min-h-screen bg-gray-900 text-white`}>
+    <html lang="en" className="dark h-full">
+      <body className={`${inter.className} min-h-screen bg-gray-900 text-white overflow-auto`}>
         <Providers>
           <MainNavbar />
-          <main className="pt-16">
+          <main className="pt-16 min-h-[calc(100vh-4rem)] overflow-auto">
             {children}
           </main>
         </Providers>
