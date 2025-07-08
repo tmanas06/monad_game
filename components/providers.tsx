@@ -16,7 +16,7 @@ export default function Providers({children}: {children: React.ReactNode}) {
         appearance: {
             theme: 'dark',
             accentColor: '#676FFF',
-            logo: '/scan-heart.png',
+            logo: './esport.png',
         },
         embeddedWallets: {
             ethereum: {
