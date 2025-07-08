@@ -1,6 +1,6 @@
-# 🎈 Bubble Tap - A Monad-Powered On-Chain Game
+# 🎮 Monad Gaming DApp - A Monad-Powered Gaming Platform
 
-Bubble Tap is a fun, fast-paced tapping game built on the Monad Blockchain, where **every interaction is an on-chain transaction**. Players tap on floating bubbles to increase their score — but beware of the bombs! Tapping a bomb deducts points and might cost you your leaderboard rank.
+Monad Gaming DApp is a fun, fast-paced gaming platform built on the Monad Blockchain, where **every interaction is an on-chain transaction**. Experience a variety of exciting games with the security and transparency of blockchain technology.
 
 This game showcases the **high throughput and low-latency capabilities of Monad**, making it the perfect playground for on-chain gaming.
 
@@ -8,7 +8,7 @@ This game showcases the **high throughput and low-latency capabilities of Monad*
 
 ## 🚀 Why Monad?
 
-We built Bubble Tap on [Monad](https://monad.xyz) to leverage:
+We built Monad Gaming DApp on [Monad](https://monad.xyz) to leverage:
 
 - ⚡ **10,000+ TPS** & **300M gas/sec**: Ultra-fast processing for real-time games  
 - 🧠 **EVM Compatibility**: Seamless integration with existing EVM-based tooling  
@@ -43,7 +43,7 @@ On Monad, every tap, bubble pop, or bomb click is recorded immutably on-chain �
 ## 🛠 Installation
 
 ```bash
-git clone https://github.com/Nakshatra05/bubbletap.git
+git clone https://github.com/Nakshatra05/monad-gaming-dapp.git
 cd bubble-tap
 npm install
 npm run dev
@@ -85,4 +85,4 @@ MIT License. Do whatever you want. Just don't tap the bombs. 😉
 
 ## 💬 Final Word
 
-Bubble Tap is not just a game — it's a playful showcase of what high-speed, low-latency **on-chain interactivity** can look like on Monad. Let's bring fun and frictionless gaming to the blockchain world, one bubble at a time.
+Monad Gaming DApp is not just a game — it's a showcase of what high-speed, low-latency **on-chain interactivity** can look like on Monad. Let's bring fun and frictionless gaming to the blockchain world.

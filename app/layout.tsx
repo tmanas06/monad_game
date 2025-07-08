@@ -7,8 +7,8 @@ import MainNavbar from '@/components/MainNavbar'
 const inter = Inter({ subsets: ['latin'] })
 
 export const metadata: Metadata = {
-  title: 'BubbleTap - Fun Arcade Game',
-  description: 'Pop bubbles, score points, and climb the leaderboard!',
+  title: 'Monad Gaming DApp - Blockchain Gaming Platform',
+  description: 'Experience fun and interactive blockchain gaming on Monad!',
   generator: 'Next.js',
   themeColor: '#111827',
   viewport: 'width=device-width, initial-scale=1, maximum-scale=1',

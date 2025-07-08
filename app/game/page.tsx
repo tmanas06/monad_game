@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react";
-import BubbleTapGame from "@/components/game";
+import MonadGamingDApp from "@/components/game";
 import SnakeGame from "@/components/SnakeGame";
 import CryptoDodger from "@/components/CryptoDodger";
 import { Gamepad2, MoveRight, Shield } from "lucide-react";
@@ -55,7 +55,7 @@ export default function GamePage() {
         </div>
 
         <div className="bg-gray-800 rounded-xl overflow-hidden shadow-2xl">
-          {activeGame === 'bubble' && <BubbleTapGame />}
+          {activeGame === 'bubble' && <MonadGamingDApp />}
           {activeGame === 'snake' && <SnakeGame />}
           {activeGame === 'crypto' && <CryptoDodger />}
         </div>

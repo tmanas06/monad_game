@@ -52,7 +52,7 @@ interface GameState {
   hasStarted?: boolean
 }
 
-export default function BubbleTapGame() {
+export default function MonadGamingDApp() {
   const [currentView, setCurrentView] = useState<"menu" | "game">("menu")
   const [gameState, setGameState] = useState<GameState>({
     bubbles: [],
