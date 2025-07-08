@@ -1,15 +1,16 @@
 'use client';
 
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { useEffect, useRef, useState, useCallback, useLayoutEffect } from 'react';
 import { Button } from '@/components/ui/button';
-import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, RotateCcw } from 'lucide-react';
+import { ArrowUp, ArrowDown, ArrowLeft, ArrowRight, Play, RotateCcw, Smartphone } from 'lucide-react';
 
 type Direction = 'UP' | 'DOWN' | 'LEFT' | 'RIGHT';
 type Position = { x: number; y: number };
 
 const GRID_SIZE = 20;
-const CELL_SIZE = 20;
 const GAME_SPEED = 100;
+const MIN_CELL_SIZE = 15; // Minimum cell size for mobile
+const MAX_GAME_SIZE = 400; // Maximum game area size
 
 export default function SnakeGame() {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -17,6 +18,10 @@ export default function SnakeGame() {
   const [gameOver, setGameOver] = useState(false);
   const [score, setScore] = useState(0);
   const [highScore, setHighScore] = useState(0);
+  const [cellSize, setCellSize] = useState(20);
+  const [showMobileControls, setShowMobileControls] = useState(false);
+  const [touchStart, setTouchStart] = useState<{x: number, y: number} | null>(null);
+  const gameAreaRef = useRef<HTMLDivElement>(null);
   
   const snakeRef = useRef<Position[]>([]);
   const foodRef = useRef<Position>({ x: 0, y: 0 });
@@ -48,6 +53,49 @@ export default function SnakeGame() {
     if (!ctx) return;
 
     // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw food
+    ctx.fillStyle = '#FF6B6B';
+    ctx.fillRect(
+      foodRef.current.x * cellSize,
+      foodRef.current.y * cellSize,
+      cellSize - 1,
+      cellSize - 1
+    );
+
+    // Draw snake
+    snakeRef.current.forEach((segment, index) => {
+      // Head is a different color
+      if (index === 0) {
+        ctx.fillStyle = '#45B7D1';
+      } else {
+        ctx.fillStyle = '#4ECDC4';
+      }
+      ctx.fillRect(
+        segment.x * cellSize,
+        segment.y * cellSize,
+        cellSize - 1,
+        cellSize - 1
+      );
+    });
+
+    // Draw grid
+    ctx.strokeStyle = '#2D3748';
+    ctx.lineWidth = 0.5;
+    for (let i = 0; i < GRID_SIZE; i++) {
+      // Vertical lines
+      ctx.beginPath();
+      ctx.moveTo(i * cellSize, 0);
+      ctx.lineTo(i * cellSize, GRID_SIZE * cellSize);
+      ctx.stroke();
+      
+      // Horizontal lines
+      ctx.beginPath();
+      ctx.moveTo(0, i * cellSize);
+      ctx.lineTo(GRID_SIZE * cellSize, i * cellSize);
+      ctx.stroke();
+    }
     ctx.fillStyle = '#1F2937';
     ctx.fillRect(0, 0, canvas.width, canvas.height);
 
@@ -93,10 +141,10 @@ export default function SnakeGame() {
     if (!canvas) return;
 
     // Set canvas size
-    canvas.width = GRID_SIZE * CELL_SIZE;
-    canvas.height = GRID_SIZE * CELL_SIZE;
+    canvas.width = GRID_SIZE * cellSize;
+    canvas.height = GRID_SIZE * cellSize;
 
-    // Initial snake position (center of the grid)
+    // Reset snake to starting position
     const startX = Math.floor(GRID_SIZE / 2);
     const startY = Math.floor(GRID_SIZE / 2);
     snakeRef.current = [
@@ -117,6 +165,14 @@ export default function SnakeGame() {
     setGameOver(false);
     
     // Draw initial state
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    
+    // Clear canvas
+    ctx.fillStyle = '#1F2937';
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+    
+    // Draw initial snake and food
     drawGame();
   }, [drawGame, generateFood]);
 
@@ -299,30 +355,111 @@ export default function SnakeGame() {
     return () => clearInterval(interval);
   }, [isPlaying, gameOver, score, generateFood, drawGame]);
 
+  // Handle responsive canvas sizing
+  useLayoutEffect(() => {
+    const updateCanvasSize = () => {
+      if (!gameAreaRef.current || !canvasRef.current) return;
+      
+      const containerWidth = Math.min(
+        gameAreaRef.current.clientWidth - 32, // Account for padding
+        MAX_GAME_SIZE
+      );
+      
+      const calculatedCellSize = Math.max(
+        MIN_CELL_SIZE,
+        Math.floor(containerWidth / GRID_SIZE)
+      );
+      
+      const gameSize = calculatedCellSize * GRID_SIZE;
+      
+      canvasRef.current.width = gameSize;
+      canvasRef.current.height = gameSize;
+      setCellSize(calculatedCellSize);
+      
+      // Check if mobile device
+      setShowMobileControls(window.innerWidth <= 768);
+    };
+    
+    updateCanvasSize();
+    window.addEventListener('resize', updateCanvasSize);
+    
+    return () => {
+      window.removeEventListener('resize', updateCanvasSize);
+    };
+  }, []);
+
   // Initialize game on mount
   useEffect(() => {
     initGame();
   }, [initGame]);
 
+  // Handle touch controls
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0];
+    setTouchStart({ x: touch.clientX, y: touch.clientY });
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (!touchStart || !isPlaying) return;
+    
+    const touch = e.changedTouches[0];
+    const endX = touch.clientX;
+    const endY = touch.clientY;
+    
+    const diffX = touchStart.x - endX;
+    const diffY = touchStart.y - endY;
+    const absDiffX = Math.abs(diffX);
+    const absDiffY = Math.abs(diffY);
+    
+    // Determine if the swipe was horizontal or vertical
+    if (Math.max(absDiffX, absDiffY) > 10) { // 10px threshold for swipe
+      if (absDiffX > absDiffY) {
+        // Horizontal swipe
+        if (diffX > 0 && directionRef.current !== 'RIGHT') {
+          nextDirectionRef.current = 'LEFT';
+        } else if (diffX < 0 && directionRef.current !== 'LEFT') {
+          nextDirectionRef.current = 'RIGHT';
+        }
+      } else {
+        // Vertical swipe
+        if (diffY > 0 && directionRef.current !== 'DOWN') {
+          nextDirectionRef.current = 'UP';
+        } else if (diffY < 0 && directionRef.current !== 'UP') {
+          nextDirectionRef.current = 'DOWN';
+        }
+      }
+    }
+    
+    setTouchStart(null);
+  };
+
   // Handle keyboard controls
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if (!isPlaying && e.key === ' ') {
+      if (!isPlaying && (e.key === ' ' || e.key === 'Enter')) {
         startGame();
         return;
       }
       
       switch (e.key) {
         case 'ArrowUp':
+        case 'w':
+        case 'W':
           if (directionRef.current !== 'DOWN') nextDirectionRef.current = 'UP';
           break;
         case 'ArrowDown':
+        case 's':
+        case 'S':
           if (directionRef.current !== 'UP') nextDirectionRef.current = 'DOWN';
           break;
         case 'ArrowLeft':
+        case 'a':
+        case 'A':
           if (directionRef.current !== 'RIGHT') nextDirectionRef.current = 'LEFT';
           break;
         case 'ArrowRight':
+        case 'd':
+        case 'D':
           if (directionRef.current !== 'LEFT') nextDirectionRef.current = 'RIGHT';
           break;
       }
@@ -331,6 +468,21 @@ export default function SnakeGame() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isPlaying]);
+  
+  // Handle direction button clicks
+  const handleDirectionClick = (direction: Direction) => {
+    if (!isPlaying) return;
+    
+    // Prevent 180-degree turns
+    if (
+      (direction === 'UP' && directionRef.current !== 'DOWN') ||
+      (direction === 'DOWN' && directionRef.current !== 'UP') ||
+      (direction === 'LEFT' && directionRef.current !== 'RIGHT') ||
+      (direction === 'RIGHT' && directionRef.current !== 'LEFT')
+    ) {
+      nextDirectionRef.current = direction;
+    }
+  };
 
   const startGame = () => {
     initGame();
@@ -339,8 +491,8 @@ export default function SnakeGame() {
   };
 
   return (
-    <div className="flex flex-col items-center justify-center p-4">
-      <div className="mb-4 flex items-center justify-between w-full max-w-md">
+    <div className="flex flex-col items-center justify-center p-4 w-full max-w-2xl mx-auto">
+      <div className="w-full max-w-md mb-4 flex items-center justify-between">
         <div className="text-xl font-bold text-white">
           Score: <span className="text-yellow-400">{score}</span>
         </div>
@@ -349,31 +501,43 @@ export default function SnakeGame() {
         </div>
       </div>
       
-      <div className="relative bg-gray-900 rounded-lg overflow-hidden shadow-xl">
+      <div 
+        ref={gameAreaRef}
+        className="relative bg-gray-900 rounded-lg overflow-hidden shadow-xl w-full"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+      >
         <canvas 
           ref={canvasRef}
-          className="bg-gray-800"
+          className="bg-gray-800 touch-none"
           style={{
             width: '100%',
             height: 'auto',
-            maxWidth: '400px',
-            maxHeight: '400px',
+            display: 'block',
+            touchAction: 'none',
           }}
         />
         
         {!isPlaying && (
-          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-70">
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-black bg-opacity-80 p-4">
             {gameOver ? (
               <>
-                <h2 className="text-3xl font-bold text-red-500 mb-4">Game Over!</h2>
-                <p className="text-white mb-6">Your score: {score}</p>
+                <h2 className="text-3xl font-bold text-red-500 mb-4 text-center">Game Over!</h2>
+                <p className="text-white text-xl mb-6">Your score: <span className="text-yellow-400">{score}</span></p>
               </>
             ) : (
-              <h2 className="text-3xl font-bold text-white mb-6">Snake Game</h2>
+              <h2 className="text-3xl font-bold text-white mb-2 text-center">Snake Game</h2>
             )}
+            <p className="text-gray-300 text-center mb-6 max-w-md">
+              {showMobileControls 
+                ? 'Swipe or use the on-screen controls to move the snake.'
+                : 'Use arrow keys or WASD to move the snake.'
+              }
+            </p>
             <Button 
               onClick={startGame}
-              className="px-6 py-3 text-lg flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700"
+              className="px-8 py-4 text-lg flex items-center gap-2 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-lg"
+              size="lg"
             >
               {gameOver ? <RotateCcw className="w-5 h-5" /> : <Play className="w-5 h-5" />}
               {gameOver ? 'Play Again' : 'Start Game'}
@@ -382,22 +546,82 @@ export default function SnakeGame() {
         )}
       </div>
       
-      <div className="mt-6 text-center text-gray-400">
-        <p className="mb-2">Use arrow keys to control the snake</p>
-        <div className="flex justify-center gap-2">
-          <div className="p-2 bg-gray-800 rounded">
-            <ArrowUp className="w-5 h-5" />
+      {/* Mobile Controls */}
+      {showMobileControls && isPlaying && (
+        <div className="mt-6 w-full max-w-md">
+          <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="col-start-2">
+              <button
+                onClick={() => handleDirectionClick('UP')}
+                className="w-full p-4 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center"
+                aria-label="Move Up"
+              >
+                <ArrowUp className="w-8 h-8 text-white" />
+              </button>
+            </div>
           </div>
-          <div className="p-2 bg-gray-800 rounded">
-            <ArrowDown className="w-5 h-5" />
+          <div className="grid grid-cols-3 gap-2">
+            <button
+              onClick={() => handleDirectionClick('LEFT')}
+              className="p-4 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center"
+              aria-label="Move Left"
+            >
+              <ArrowLeft className="w-8 h-8 text-white" />
+            </button>
+            <div className="p-4 bg-gray-900 rounded-lg flex items-center justify-center">
+              <Smartphone className="w-6 h-6 text-gray-500" />
+            </div>
+            <button
+              onClick={() => handleDirectionClick('RIGHT')}
+              className="p-4 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center"
+              aria-label="Move Right"
+            >
+              <ArrowRight className="w-8 h-8 text-white" />
+            </button>
           </div>
-          <div className="p-2 bg-gray-800 rounded">
-            <ArrowLeft className="w-5 h-5" />
+          <div className="grid grid-cols-3 gap-2 mt-2">
+            <div className="col-start-2">
+              <button
+                onClick={() => handleDirectionClick('DOWN')}
+                className="w-full p-4 bg-gray-800 hover:bg-gray-700 rounded-lg flex items-center justify-center"
+                aria-label="Move Down"
+              >
+                <ArrowDown className="w-8 h-8 text-white" />
+              </button>
+            </div>
           </div>
-          <div className="p-2 bg-gray-800 rounded">
-            <ArrowRight className="w-5 h-5" />
+          <p className="mt-3 text-center text-sm text-gray-400">
+            Swipe or tap buttons to control
+          </p>
+        </div>
+      )}
+      
+      {/* Desktop Instructions */}
+      {!showMobileControls && (
+        <div className="mt-6 text-center text-gray-400">
+          <p className="mb-3">Use arrow keys or WASD to control the snake</p>
+          <div className="flex justify-center gap-2">
+            <div className="p-2 bg-gray-800 rounded">
+              <ArrowUp className="w-5 h-5" />
+            </div>
+            <div className="p-2 bg-gray-800 rounded">
+              <ArrowDown className="w-5 h-5" />
+            </div>
+            <div className="p-2 bg-gray-800 rounded">
+              <ArrowLeft className="w-5 h-5" />
+            </div>
+            <div className="p-2 bg-gray-800 rounded">
+              <ArrowRight className="w-5 h-5" />
+            </div>
+            <div className="ml-2 p-2 bg-gray-800 rounded">
+              <span className="text-sm">WASD</span>
+            </div>
           </div>
         </div>
+      )}
+      
+      <div className="mt-6 text-center text-sm text-gray-500">
+        <p>Swipe or use the on-screen controls on mobile devices</p>
       </div>
     </div>
   );
