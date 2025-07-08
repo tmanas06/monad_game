@@ -104,13 +104,13 @@ export default function SnakeGame() {
     ctx.lineWidth = 0.5;
     for (let i = 0; i < GRID_SIZE; i++) {
       ctx.beginPath();
-      ctx.moveTo(i * CELL_SIZE, 0);
-      ctx.lineTo(i * CELL_SIZE, GRID_SIZE * CELL_SIZE);
+      ctx.moveTo(i * cellSize, 0);
+      ctx.lineTo(i * cellSize, GRID_SIZE * cellSize);
       ctx.stroke();
       
       ctx.beginPath();
-      ctx.moveTo(0, i * CELL_SIZE);
-      ctx.lineTo(GRID_SIZE * CELL_SIZE, i * CELL_SIZE);
+      ctx.moveTo(0, i * cellSize);
+      ctx.lineTo(GRID_SIZE * cellSize, i * cellSize);
       ctx.stroke();
     }
 
@@ -118,19 +118,19 @@ export default function SnakeGame() {
     snakeRef.current.forEach((segment, index) => {
       ctx.fillStyle = index === 0 ? '#4F46E5' : '#6366F1';
       ctx.fillRect(
-        segment.x * CELL_SIZE + 1,
-        segment.y * CELL_SIZE + 1,
-        CELL_SIZE - 2,
-        CELL_SIZE - 2
+        segment.x * cellSize + 1,
+        segment.y * cellSize + 1,
+        cellSize - 2,
+        cellSize - 2
       );
     });
 
     // Draw food
     ctx.fillStyle = '#EC4899';
     ctx.beginPath();
-    const centerX = foodRef.current.x * CELL_SIZE + CELL_SIZE / 2;
-    const centerY = foodRef.current.y * CELL_SIZE + CELL_SIZE / 2;
-    const radius = CELL_SIZE / 2 - 2;
+    const centerX = foodRef.current.x * cellSize + cellSize / 2;
+    const centerY = foodRef.current.y * cellSize + cellSize / 2;
+    const radius = cellSize / 2 - 2;
     ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
     ctx.fill();
   }, []);
