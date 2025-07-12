@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Clock, Target, Zap, Play, Pause, RotateCcw } from "lucide-react"
-import { getSigner, publicClient } from "@/lib/viem"
+import { getSigner, publicClient, CONTRACT_ADDRESS, CONTRACT_ABI, type ContractFunction } from "@/lib/viem"
 import { Howl } from "howler"
 
 // Sound effects interface
@@ -50,6 +50,7 @@ interface GameState {
   gameMode: "classic" | "timeAttack" | "survival"
   level: number
   hasStarted?: boolean
+  hasClaimedReward?: boolean
 }
 
 export default function MonadGamingDApp() {
@@ -63,7 +64,83 @@ export default function MonadGamingDApp() {
     isPaused: false,
     gameMode: "classic",
     level: 1,
+    hasClaimedReward: false
   })
+
+  const [rewardAmount, setRewardAmount] = useState<number | null>(null)
+  const [isClaiming, setIsClaiming] = useState(false)
+
+  // Check if player has claimed reward
+  useEffect(() => {
+    const checkClaimStatus = async () => {
+      try {
+        const signer = await getSigner()
+        const hasClaimed = await signer.account.address
+          ? await publicClient.simulateContract({
+              address: CONTRACT_ADDRESS,
+              abi: CONTRACT_ABI,
+              functionName: 'hasClaimed',
+              args: [signer.account.address]
+            })
+          : false
+        setGameState(prev => ({ ...prev, hasClaimedReward: hasClaimed }))
+      } catch (error) {
+        console.error('Error checking claim status:', error)
+      }
+    }
+    checkClaimStatus()
+  }, [])
+
+  // Calculate dynamic reward amount based on score
+  const calculateRewardAmount = useCallback((score: number) => {
+    // Base reward amount (0.001 USDT)
+    const baseReward = 0.001;
+    // Reward increment per 40 points
+    const rewardPer40Points = 0.001;
+    // Calculate how many 40-point intervals we've reached
+    const scoreIntervals = Math.floor(score / 40);
+    // Calculate total reward
+    const totalReward = baseReward + (scoreIntervals * rewardPer40Points);
+    return totalReward;
+  }, []);
+
+  // Update reward amount when score changes
+  useEffect(() => {
+    const rewardAmount = calculateRewardAmount(gameState.score);
+    setRewardAmount(rewardAmount);
+  }, [gameState.score, calculateRewardAmount])
+
+  // Claim reward function
+  const claimReward = async () => {
+    try {
+      setIsClaiming(true)
+      const signer = await getSigner()
+      const tx = await signer.writeContract({
+        address: CONTRACT_ADDRESS,
+        abi: CONTRACT_ABI,
+        functionName: 'claimReward'
+      })
+      await publicClient.waitForTransactionReceipt({ hash: tx })
+      setGameState(prev => ({ ...prev, hasClaimedReward: true }))
+      // Reset game state after claiming reward
+      setGameState({
+        bubbles: [],
+        score: 0,
+        lives: 3,
+        timeLeft: GAME_DURATION,
+        isPlaying: false,
+        isPaused: false,
+        gameMode: "classic",
+        level: 1,
+        hasStarted: false,
+        hasClaimedReward: true
+      })
+    } catch (error) {
+      console.error('Error claiming reward:', error)
+    } finally {
+      setIsClaiming(false)
+    }
+  }
 
   // Refs with proper TypeScript types
   type IntervalHandle = ReturnType<typeof setInterval>
